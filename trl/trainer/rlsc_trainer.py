@@ -151,7 +151,7 @@ class RLSCTrainer(Trainer):
         
         return confidence
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """Compute RLSC loss using confidence as reward signal."""
         outputs = model(**inputs)
         logits = outputs.logits
@@ -174,7 +174,18 @@ class RLSCTrainer(Trainer):
 
     def create_model_card(self, model_name: Optional[str] = None, **kwargs):
         """Create model card for RLSC trainer."""
+        dataset_name = kwargs.pop("dataset_name", "unknown")
+        hub_model_id = kwargs.pop("hub_model_id", "")
+        tags = kwargs.pop("tags", ["trl", "rlsc"])
+        wandb_url = kwargs.pop("wandb_url", "")
+        
         model_card = generate_model_card(
+            base_model=model_name or "unknown",
+            model_name=model_name or "RLSC-model",
+            hub_model_id=hub_model_id,
+            dataset_name=dataset_name,
+            tags=tags,
+            wandb_url=wandb_url,
             trainer_name="RLSC",
             trainer_citation="@article{rlsc2024, title={Confidence Is All You Need: Few-Shot RL Fine-Tuning of Language Models}}",
             paper_title="Confidence Is All You Need: Few-Shot RL Fine-Tuning of Language Models",
