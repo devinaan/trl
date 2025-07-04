@@ -96,15 +96,21 @@ class RLSCTrainer(Trainer):
         optimizers: tuple = (None, None),
         **kwargs,
     ):
+        model_id = model if isinstance(model, str) else model.config._name_or_path
+        
         if args is None:
-            args = RLSCConfig()
-
+            model_name = model_id.split("/")[-1]
+            args = RLSCConfig(f"{model_name}-RLSC")
+        
+        assert isinstance(args, RLSCConfig)
         model_init_kwargs = args.model_init_kwargs or {}
         if isinstance(model, str):
             model = AutoModelForCausalLM.from_pretrained(model, **model_init_kwargs)
         
         if processing_class is None:
-            processing_class = AutoTokenizer.from_pretrained(model.config._name_or_path)
+            processing_class = AutoTokenizer.from_pretrained(model_id)
+        
+        assert processing_class is not None
         if processing_class.pad_token is None:
             processing_class.pad_token = processing_class.eos_token
 
