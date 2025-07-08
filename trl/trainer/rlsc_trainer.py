@@ -25,7 +25,6 @@ from transformers import (
     TrainerCallback,
 )
 
-from ..data_utils import maybe_apply_chat_template
 from .rlsc_config import RLSCConfig
 from .utils import (
     disable_dropout_in_model,
