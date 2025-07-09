@@ -68,7 +68,7 @@ _import_structure = {
     "rloo_config": ["RLOOConfig"],
     "rloo_trainer": ["RLOOTrainer"],
     "sft_config": ["SFTConfig"],
-    "sft_trainer": ["SFTTrainer"],
+    "sft_trainer": ["SFTTrainer", "DataCollatorForTypeBasedLM"],
     "utils": [
         "ConstantLengthDataset",
         "DataCollatorForCompletionOnlyLM",
@@ -139,7 +139,7 @@ if TYPE_CHECKING:
     from .rloo_config import RLOOConfig
     from .rloo_trainer import RLOOTrainer
     from .sft_config import SFTConfig
-    from .sft_trainer import SFTTrainer
+    from .sft_trainer import SFTTrainer, DataCollatorForTypeBasedLM
     from .utils import (
         ConstantLengthDataset,
         DataCollatorForCompletionOnlyLM,
