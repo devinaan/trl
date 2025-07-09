@@ -268,6 +268,71 @@ class DataCollatorForLanguageModeling(DataCollatorMixin):
         return list(position_ids.split(example_lengths))
 
 
+@dataclass
+class DataCollatorForTypeBasedLM(DataCollatorForLanguageModeling):
+    """
+    Data collator that applies different preprocessing based on the "type" field in examples.
+    
+    - For "type"=="CPT": Applies continued pre-training preprocessing (no input masking)
+    - For "type"=="IT": Applies instruction tuning preprocessing (masks input portions)
+    
+    Inherits all functionality from DataCollatorForLanguageModeling and overrides torch_call
+    to implement type-based masking logic.
+    """
+    
+    def torch_call(self, examples: list[Union[list[int], Any, dict[str, Any]]]) -> dict[str, Any]:
+        cpt_examples = []
+        it_examples = []
+        original_indices = []
+        
+        for i, example in enumerate(examples):
+            if example.get("type") == "CPT":
+                cpt_examples.append(example)
+                original_indices.append(("CPT", i, len(cpt_examples) - 1))
+            elif example.get("type") == "IT":
+                it_examples.append(example)
+                original_indices.append(("IT", i, len(it_examples) - 1))
+            else:
+                raise ValueError(f"Unknown type: {example.get('type')}. Expected 'CPT' or 'IT'.")
+        
+        results = {}
+        
+        if cpt_examples:
+            original_completion_only_loss = self.completion_only_loss
+            self.completion_only_loss = False
+            cpt_result = super().torch_call(cpt_examples)
+            self.completion_only_loss = original_completion_only_loss
+            results["CPT"] = cpt_result
+        
+        if it_examples:
+            original_completion_only_loss = self.completion_only_loss
+            self.completion_only_loss = True
+            it_result = super().torch_call(it_examples)
+            self.completion_only_loss = original_completion_only_loss
+            results["IT"] = it_result
+        
+        if len(results) == 1:
+            return list(results.values())[0]
+        
+        merged_result = {}
+        total_examples = len(examples)
+        
+        # Initialize tensors for merged result
+        for key in results[list(results.keys())[0]].keys():
+            if key in ["input_ids", "attention_mask", "labels", "position_ids"]:
+                first_tensor = results[list(results.keys())[0]][key]
+                if len(first_tensor.shape) == 2:
+                    seq_len = first_tensor.shape[1]
+                    merged_tensor = torch.zeros((total_examples, seq_len), dtype=first_tensor.dtype, device=first_tensor.device)
+                    
+                    for type_name, orig_idx, type_idx in original_indices:
+                        merged_tensor[orig_idx] = results[type_name][key][type_idx]
+                    
+                    merged_result[key] = merged_tensor
+        
+        return merged_result
+
+
 class SFTTrainer(Trainer):
     """
     Trainer for Supervised Fine-Tuning (SFT) method.

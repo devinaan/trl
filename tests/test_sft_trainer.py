@@ -36,7 +36,7 @@ from transformers.utils import is_peft_available
 
 from trl import SFTConfig, SFTTrainer
 from trl.trainer import ConstantLengthDataset, DataCollatorForCompletionOnlyLM
-from trl.trainer.sft_trainer import DataCollatorForLanguageModeling
+from trl.trainer.sft_trainer import DataCollatorForLanguageModeling, DataCollatorForTypeBasedLM
 
 
 def formatting_prompts_func(example):
@@ -235,6 +235,71 @@ class TestDataCollatorForLanguageModeling(unittest.TestCase):
         torch.testing.assert_close(result["attention_mask"], torch.tensor([[1, 1, 1], [1, 1, 0]]))
         torch.testing.assert_close(result["position_ids"], torch.tensor([[0, 1, 2], [0, 1, 0]]))
         torch.testing.assert_close(result["labels"], torch.tensor([[-100, 2, 3], [-100, 5, -100]]))
+
+
+class TestDataCollatorForTypeBasedLM(unittest.TestCase):
+    def setUp(self):
+        self.collator = DataCollatorForTypeBasedLM(pad_token_id=0)
+    
+    def test_cpt_type_no_masking(self):
+        """Test that CPT type examples don't mask input tokens."""
+        examples = [
+            {
+                "input_ids": [1, 2, 3, 4, 5],
+                "type": "CPT"
+            }
+        ]
+        result = self.collator(examples)
+        
+        expected_labels = torch.tensor([[1, 2, 3, 4, 5]])
+        torch.testing.assert_close(result["labels"], expected_labels)
+    
+    def test_it_type_with_masking(self):
+        """Test that IT type examples mask input tokens when completion_mask is provided."""
+        examples = [
+            {
+                "input_ids": [1, 2, 3, 4, 5],
+                "completion_mask": [0, 0, 1, 1, 1],  # First 2 tokens are input, last 3 are completion
+                "type": "IT"
+            }
+        ]
+        result = self.collator(examples)
+        
+        expected_labels = torch.tensor([[-100, -100, 3, 4, 5]])
+        torch.testing.assert_close(result["labels"], expected_labels)
+    
+    def test_mixed_batch(self):
+        """Test processing a batch with both CPT and IT examples."""
+        examples = [
+            {
+                "input_ids": [1, 2, 3],
+                "type": "CPT"
+            },
+            {
+                "input_ids": [4, 5, 6],
+                "completion_mask": [0, 1, 1],
+                "type": "IT"
+            }
+        ]
+        result = self.collator(examples)
+        
+        # CPT example should not be masked, IT example should be masked
+        expected_labels = torch.tensor([[1, 2, 3], [-100, 5, 6]])
+        torch.testing.assert_close(result["labels"], expected_labels)
+    
+    def test_invalid_type_raises_error(self):
+        """Test that invalid type raises ValueError."""
+        examples = [
+            {
+                "input_ids": [1, 2, 3],
+                "type": "INVALID"
+            }
+        ]
+        
+        with self.assertRaises(ValueError) as context:
+            self.collator(examples)
+        
+        self.assertIn("Unknown type: INVALID", str(context.exception))
 
 
 class SFTTrainerTester(unittest.TestCase):
