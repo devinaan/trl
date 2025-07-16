@@ -1,7 +1,7 @@
 """
-Example script for training with UFTTrainer (Uncertainty-guided Fine-Tuning).
+Example script for training with UFTTrainer (Unified Fine-Tuning).
 
-This script demonstrates how to use UFTTrainer with SFT hints for uncertainty-guided training.
+This script demonstrates how to use UFTTrainer with SFT hints for unified fine-tuning.
 """
 
 from datasets import Dataset

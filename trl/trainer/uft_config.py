@@ -23,7 +23,7 @@ class UFTConfig(GRPOConfig):
     r"""
     Configuration class for the [`UFTTrainer`].
     
-    This class extends [`GRPOConfig`] with UFT-specific parameters for uncertainty-guided fine-tuning.
+    This class extends [`GRPOConfig`] with UFT-specific parameters for unified fine-tuning.
     
     Parameters:
         uft_regularization_weight (`float`, *optional*, defaults to `0.1`):

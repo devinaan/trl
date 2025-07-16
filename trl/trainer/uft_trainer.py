@@ -25,7 +25,7 @@ from ..data_utils import maybe_apply_chat_template
 
 class UFTTrainer(GRPOTrainer):
     """
-    Trainer for Uncertainty-guided Fine-Tuning (UFT) method.
+    Trainer for Unified Fine-Tuning (UFT) method.
     
     This trainer extends GRPOTrainer to incorporate SFT guidance through dynamic prompt generation
     and uncertainty-based regularization.
@@ -97,7 +97,7 @@ class UFTTrainer(GRPOTrainer):
         
     def _generate_dynamic_prompt_with_hints(self, example: Dict, sft_hint: str = None) -> Dict:
         """
-        Generate dynamic prompts that incorporate SFT hints for uncertainty guidance.
+        Generate dynamic prompts that incorporate SFT hints for unified fine-tuning.
         
         Args:
             example: Original example from dataset
@@ -181,7 +181,7 @@ class UFTTrainer(GRPOTrainer):
         entropies: torch.Tensor = None
     ) -> torch.Tensor:
         """
-        Compute UFT regularization term based on uncertainty and SFT guidance.
+        Compute UFT regularization term based on uncertainty and SFT guidance for unified fine-tuning.
         
         Args:
             per_token_logps: Per-token log probabilities
