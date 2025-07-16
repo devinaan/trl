@@ -27,7 +27,7 @@ class UFTConfig(GRPOConfig):
     
     Default values are chosen to be conservative and follow established patterns in the TRL library:
     - Regularization weight (0.01) follows the pattern of auxiliary loss coefficients in other trainers
-    - Uncertainty threshold (0.0) applies regularization to all tokens by default for maximum stability
+    - Token threshold (0.0) applies regularization to all tokens by default for maximum stability
     - SFT hints are enabled by default as they are the core feature of UFT
     
     Parameters:
@@ -40,9 +40,9 @@ class UFTConfig(GRPOConfig):
         sft_answer_column (`str`, *optional*, defaults to `"sft_answer"`):
             Column name containing SFT teacher signals to use as hints.
             Standard column name for SFT teacher signals in UFT datasets.
-        uncertainty_threshold (`float`, *optional*, defaults to `0.0`):
-            Threshold for uncertainty-based weighting in the regularization term.
-            Default of 0.0 applies regularization to all tokens; increase to focus on high-uncertainty tokens only.
+        token_threshold (`float`, *optional*, defaults to `0.0`):
+            Threshold for token-based weighting in the regularization term.
+            Default of 0.0 applies regularization to all tokens; increase to focus on high-weight tokens only.
     """
     
     uft_regularization_weight: float = field(
@@ -57,7 +57,7 @@ class UFTConfig(GRPOConfig):
         default="sft_answer",
         metadata={"help": "Column name containing SFT teacher signals to use as hints. Standard UFT dataset column name."}
     )
-    uncertainty_threshold: float = field(
+    token_threshold: float = field(
         default=0.0,
-        metadata={"help": "Threshold for uncertainty-based weighting in the regularization term. 0.0 applies to all tokens, higher values focus on uncertain tokens."}
+        metadata={"help": "Threshold for token-based weighting in the regularization term. 0.0 applies to all tokens, higher values focus on high-weight tokens."}
     )

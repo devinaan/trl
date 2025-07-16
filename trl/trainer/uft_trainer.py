@@ -28,7 +28,7 @@ class UFTTrainer(GRPOTrainer):
     Trainer for Unified Fine-Tuning (UFT) method.
     
     This trainer extends GRPOTrainer to incorporate SFT guidance through dynamic prompt generation
-    and uncertainty-based regularization.
+    and adaptive token-based regularization.
     
     Example:
     
@@ -93,7 +93,7 @@ class UFTTrainer(GRPOTrainer):
         self.uft_regularization_weight = args.uft_regularization_weight
         self.use_sft_hints = args.use_sft_hints
         self.sft_answer_column = args.sft_answer_column
-        self.uncertainty_threshold = args.uncertainty_threshold
+        self.token_threshold = args.token_threshold
         
     def _generate_dynamic_prompt_with_hints(self, example: Dict, sft_hint: str = None) -> Dict:
         """
@@ -147,28 +147,28 @@ class UFTTrainer(GRPOTrainer):
         
         return result
         
-    def _compute_uncertainty_weights(self, per_token_logps: torch.Tensor, entropies: torch.Tensor = None) -> torch.Tensor:
+    def _compute_token_weights(self, per_token_logps: torch.Tensor, entropies: torch.Tensor = None) -> torch.Tensor:
         """
-        Compute uncertainty-based weights for regularization.
+        Compute adaptive token-based weights for regularization.
         
         Args:
             per_token_logps: Per-token log probabilities
             entropies: Per-token entropies (optional)
             
         Returns:
-            Uncertainty weights for each token
+            Token weights for each token
         """
         if entropies is not None:
-            uncertainty = entropies
+            token_scores = entropies
         else:
-            uncertainty = -per_token_logps
+            token_scores = -per_token_logps
             
-        uncertainty_normalized = torch.sigmoid(uncertainty)
+        token_scores_normalized = torch.sigmoid(token_scores)
         
         weights = torch.where(
-            uncertainty_normalized > self.uncertainty_threshold,
-            uncertainty_normalized,
-            torch.zeros_like(uncertainty_normalized)
+            token_scores_normalized > self.token_threshold,
+            token_scores_normalized,
+            torch.zeros_like(token_scores_normalized)
         )
         
         return weights
@@ -181,7 +181,7 @@ class UFTTrainer(GRPOTrainer):
         entropies: torch.Tensor = None
     ) -> torch.Tensor:
         """
-        Compute UFT regularization term based on uncertainty and SFT guidance for unified fine-tuning.
+        Compute UFT regularization term based on adaptive token weighting and SFT guidance for unified fine-tuning.
         
         Args:
             per_token_logps: Per-token log probabilities
@@ -195,9 +195,9 @@ class UFTTrainer(GRPOTrainer):
         if not self.use_sft_hints or self.uft_regularization_weight == 0.0:
             return torch.tensor(0.0, device=per_token_logps.device)
             
-        uncertainty_weights = self._compute_uncertainty_weights(per_token_logps, entropies)
+        token_weights = self._compute_token_weights(per_token_logps, entropies)
         
-        regularization_loss = -per_token_logps * uncertainty_weights * completion_mask
+        regularization_loss = -per_token_logps * token_weights * completion_mask
         
         return regularization_loss.sum() / completion_mask.sum().clamp(min=1.0)
         

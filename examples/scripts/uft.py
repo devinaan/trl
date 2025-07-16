@@ -57,7 +57,7 @@ def main():
         uft_regularization_weight=0.01,  # Conservative default, can be increased if needed
         use_sft_hints=True,
         sft_answer_column="sft_answer",
-        uncertainty_threshold=0.0,  # Apply to all tokens by default
+        token_threshold=0.0,  # Apply to all tokens by default
         max_prompt_length=256,
         max_completion_length=128,
         num_generations=4,
