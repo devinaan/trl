@@ -69,6 +69,8 @@ _import_structure = {
     "rloo_trainer": ["RLOOTrainer"],
     "sft_config": ["SFTConfig"],
     "sft_trainer": ["SFTTrainer"],
+    "uft_config": ["UFTConfig"],
+    "uft_trainer": ["UFTTrainer"],
     "utils": [
         "ConstantLengthDataset",
         "DataCollatorForCompletionOnlyLM",
@@ -140,6 +142,8 @@ if TYPE_CHECKING:
     from .rloo_trainer import RLOOTrainer
     from .sft_config import SFTConfig
     from .sft_trainer import SFTTrainer
+    from .uft_config import UFTConfig
+    from .uft_trainer import UFTTrainer
     from .utils import (
         ConstantLengthDataset,
         DataCollatorForCompletionOnlyLM,
