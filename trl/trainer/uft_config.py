@@ -25,30 +25,39 @@ class UFTConfig(GRPOConfig):
     
     This class extends [`GRPOConfig`] with UFT-specific parameters for unified fine-tuning.
     
+    Default values are chosen to be conservative and follow established patterns in the TRL library:
+    - Regularization weight (0.01) follows the pattern of auxiliary loss coefficients in other trainers
+    - Uncertainty threshold (0.0) applies regularization to all tokens by default for maximum stability
+    - SFT hints are enabled by default as they are the core feature of UFT
+    
     Parameters:
-        uft_regularization_weight (`float`, *optional*, defaults to `0.1`):
+        uft_regularization_weight (`float`, *optional*, defaults to `0.01`):
             Weight for the UFT regularization term that incorporates SFT guidance.
+            Default value follows common practice for auxiliary loss terms in preference optimization.
         use_sft_hints (`bool`, *optional*, defaults to `True`):
             Whether to use SFT answer hints during dynamic prompt generation.
+            Enabled by default as this is the core feature of UFT.
         sft_answer_column (`str`, *optional*, defaults to `"sft_answer"`):
             Column name containing SFT teacher signals to use as hints.
-        uncertainty_threshold (`float`, *optional*, defaults to `0.5`):
+            Standard column name for SFT teacher signals in UFT datasets.
+        uncertainty_threshold (`float`, *optional*, defaults to `0.0`):
             Threshold for uncertainty-based weighting in the regularization term.
+            Default of 0.0 applies regularization to all tokens; increase to focus on high-uncertainty tokens only.
     """
     
     uft_regularization_weight: float = field(
-        default=0.1,
-        metadata={"help": "Weight for the UFT regularization term that incorporates SFT guidance."}
+        default=0.01,
+        metadata={"help": "Weight for the UFT regularization term that incorporates SFT guidance. Default follows common practice for auxiliary loss terms."}
     )
     use_sft_hints: bool = field(
         default=True,
-        metadata={"help": "Whether to use SFT answer hints during dynamic prompt generation."}
+        metadata={"help": "Whether to use SFT answer hints during dynamic prompt generation. Core UFT feature enabled by default."}
     )
     sft_answer_column: str = field(
         default="sft_answer",
-        metadata={"help": "Column name containing SFT teacher signals to use as hints."}
+        metadata={"help": "Column name containing SFT teacher signals to use as hints. Standard UFT dataset column name."}
     )
     uncertainty_threshold: float = field(
-        default=0.5,
-        metadata={"help": "Threshold for uncertainty-based weighting in the regularization term."}
+        default=0.0,
+        metadata={"help": "Threshold for uncertainty-based weighting in the regularization term. 0.0 applies to all tokens, higher values focus on uncertain tokens."}
     )
