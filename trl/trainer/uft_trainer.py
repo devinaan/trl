@@ -259,9 +259,10 @@ class UFTTrainer(GRPOTrainer):
             else:
                 ref_per_token_logps = None
 
-        completion_ids, completion_mask, completion_ids_list = self._replace_completions_with_sft_answers(
-            inputs, completion_ids, completion_mask, completion_ids_list
-        )
+        if self.model.training:
+            completion_ids, completion_mask, completion_ids_list = self._replace_completions_with_sft_answers(
+                inputs, completion_ids, completion_mask, completion_ids_list
+            )
 
         completions_text = self.processing_class.batch_decode(completion_ids, skip_special_tokens=True)
         if is_conversational(inputs[0]):
