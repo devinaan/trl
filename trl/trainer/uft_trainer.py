@@ -260,8 +260,8 @@ class UFTTrainer(GRPOTrainer):
                 ref_per_token_logps = None
 
         if self.model.training:
-            completion_ids, completion_mask, completion_ids_list = self._replace_completions_with_sft_answers(
-                inputs, completion_ids, completion_mask, completion_ids_list
+            completion_ids, completion_mask, completion_ids_list, is_eos, eos_idx, completion_lengths, attention_mask, prompt_completion_ids = self._replace_completions_with_sft_answers(
+                inputs, completion_ids, completion_mask, completion_ids_list, is_eos, eos_idx, completion_lengths, attention_mask, prompt_mask, prompt_completion_ids
             )
 
         completions_text = self.processing_class.batch_decode(completion_ids, skip_special_tokens=True)
@@ -344,12 +344,19 @@ class UFTTrainer(GRPOTrainer):
         inputs: list[dict[str, Union[torch.Tensor, Any]]],
         completion_ids: torch.Tensor,
         completion_mask: torch.Tensor,
-        completion_ids_list: list[list[int]]
-    ) -> tuple[torch.Tensor, torch.Tensor, list[list[int]]]:
+        completion_ids_list: list[list[int]],
+        is_eos: torch.Tensor,
+        eos_idx: torch.Tensor,
+        completion_lengths: torch.Tensor,
+        attention_mask: torch.Tensor,
+        prompt_mask: torch.Tensor,
+        prompt_completion_ids: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, list[list[int]], torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Replace completions with sft_answer when available.
         
-        This method modifies completion_ids, completion_mask, and completion_ids_list
+        This method modifies completion_ids, completion_mask, completion_ids_list,
+        and all dependent variables (is_eos, eos_idx, completion_lengths, attention_mask, prompt_completion_ids)
         to replace the first completion for each prompt that has sft_answer.
         """
         device = self.accelerator.device
@@ -360,11 +367,16 @@ class UFTTrainer(GRPOTrainer):
         ]
         
         if not any(has_sft_answer):
-            return completion_ids, completion_mask, completion_ids_list
+            return completion_ids, completion_mask, completion_ids_list, is_eos, eos_idx, completion_lengths, attention_mask, prompt_completion_ids
         
         modified_completion_ids = completion_ids.clone()
         modified_completion_mask = completion_mask.clone()
         modified_completion_ids_list = completion_ids_list.copy()
+        modified_is_eos = is_eos.clone()
+        modified_eos_idx = eos_idx.clone()
+        modified_completion_lengths = completion_lengths.clone()
+        modified_attention_mask = attention_mask.clone()
+        modified_prompt_completion_ids = prompt_completion_ids.clone()
         
         for i, (inp, has_sft) in enumerate(zip(inputs, has_sft_answer)):
             if not has_sft:
@@ -397,11 +409,35 @@ class UFTTrainer(GRPOTrainer):
             
             modified_completion_ids[i] = sft_tokens.to(device)
             
-            modified_completion_mask[i] = torch.zeros(max_len, device=device)
-            modified_completion_mask[i][:actual_length] = 1
+            modified_is_eos[i] = modified_completion_ids[i] == self.processing_class.eos_token_id
             
+            if modified_is_eos[i].any():
+                modified_eos_idx[i] = modified_is_eos[i].int().argmax()
+            else:
+                modified_eos_idx[i] = max_len  # No EOS found, use max length
+            
+            sequence_indices = torch.arange(max_len, device=device)
+            modified_completion_mask[i] = (sequence_indices <= modified_eos_idx[i]).int()
+            
+            # Update completion_ids_list based on new completion_mask
             modified_completion_ids_list[i] = [
-                token.item() for token in sft_tokens[:actual_length]
+                id.item() for id, m in zip(modified_completion_ids[i], modified_completion_mask[i]) if m
             ]
+            
+            # Update completion_lengths
+            modified_completion_lengths[i] = modified_completion_mask[i].sum()
+            
+            # Update attention_mask (concatenate prompt_mask with new completion_mask)
+            modified_attention_mask[i] = torch.cat([prompt_mask[i], modified_completion_mask[i]])
+            
+            prompt_length = modified_prompt_completion_ids.size(1) - modified_completion_ids.size(1)
+            modified_prompt_completion_ids[i] = torch.cat([modified_prompt_completion_ids[i][:prompt_length], modified_completion_ids[i]])
         
-        return modified_completion_ids, modified_completion_mask, modified_completion_ids_list
+        if hasattr(self, 'mask_truncated_completions') and self.mask_truncated_completions:
+            for i in range(modified_completion_ids.size(0)):
+                if not modified_is_eos[i].any():  # No EOS found = truncated
+                    modified_completion_mask[i] = torch.zeros_like(modified_completion_mask[i])
+                    modified_attention_mask[i] = torch.cat([prompt_mask[i], modified_completion_mask[i]])
+                    modified_completion_lengths[i] = 0
+        
+        return modified_completion_ids, modified_completion_mask, modified_completion_ids_list, modified_is_eos, modified_eos_idx, modified_completion_lengths, modified_attention_mask, modified_prompt_completion_ids
